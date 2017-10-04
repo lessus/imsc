@@ -1,0 +1,210 @@
+<?php
+
+
+
+//BLOCKS
+function imscmanagement_block_info() {
+	$blocks = array();    
+	$blocks['user_show_team'] = array(
+		'info' => t('User show team'),
+   		'cache' => DRUPAL_NO_CACHE
+	);
+    $blocks['admin_tournament'] = array(
+        'info' => t('Admin tournament'),
+        'cache' => DRUPAL_NO_CACHE
+    );
+    $blocks['admin_edit_tournament'] = array(
+        'info' => t('Admin edit tournament'),
+        'cache' => DRUPAL_NO_CACHE
+    );
+    $blocks['admin_teams'] = array(
+        'info' => t('Admin teams'),
+        'cache' => DRUPAL_NO_CACHE
+    );
+    $blocks['admin_show_team'] = array(
+        'info' => t('Admin show teams'),
+        'cache' => DRUPAL_NO_CACHE
+    );
+    $blocks['admin_groups'] = array(
+        'info' => t('Admin groups'),
+        'cache' => DRUPAL_NO_CACHE
+    );
+
+	return $blocks;
+}
+
+function imscmanagement_block_view($delta = ''){
+	$block = array();
+
+	switch($delta){
+        case 'admin_tournament':
+            $block = array(
+                'subject' => 'Admin tournament',
+                'content' => array(
+                    '#markup'   => theme('block_admin_tournament'),
+                    '#attached' => array(
+                        'js' => array(
+                            drupal_get_path('module', 'imscmanagement') . '/assets/js/admin.js'
+                        )
+                    ),
+                )
+            );
+            break;
+        case 'admin_edit_tournament':
+            $block = array(
+                'subject' => 'Admin edit tournament',
+                'content' => array(
+                    '#markup'   => theme('block_admin_edit_tournament'),
+                    '#attached' => array(
+                        'js' => array(
+                            drupal_get_path('module', 'imscmanagement') . '/assets/js/admin-tournament.js'
+                        )
+                    ),
+                )
+            );
+            break;
+        case 'user_show_team':
+			$block = array(
+                'subject' => 'User show team',
+                'content' => array(
+                    '#markup'   => theme('block_user_show_team'),
+                    '#attached' => array(
+                        'js' => array(
+                            drupal_get_path('module', 'imscmanagement') . '/assets/js/user.js'
+                        )
+                    ),
+                )
+            );
+            break;
+        case 'admin_show_team':
+            $block = array(
+                'subject' => 'Admin show team',
+                'content' => array(
+                    '#markup'   => theme('block_admin_show_team'),
+                    '#attached' => array(
+                        'js' => array(
+                            drupal_get_path('module', 'imscmanagement') . '/assets/js/user.js'
+                        )
+                    ),
+                )
+            );
+            break;
+	}
+	return $block;
+}
+
+function imscmanagement_theme($existing, $type, $theme, $path){
+    $base = array(
+        'path' => drupal_get_path('module', 'imscmanagement') . '/templates'
+    );
+
+    return array(
+        'block_admin_tournament' => $base + array(
+            'template'  => 'admin_tournament',
+        ),
+        'block_admin_edit_tournament' => $base + array(
+            'template'  => 'admin_edit_tournament',
+        ),
+        'block_user_show_team' => $base + array(
+            'template'  => 'user_show_team',
+        ),
+        'block_admin_show_team' => $base + array(
+            'template'  => 'admin_show_team',
+        ),
+    );
+}
+
+//Upload logo form
+
+function imscmanagement_logo_form($form, &$form_state){
+
+    $form['logo'] = array(
+        '#title'            => 'Upload team logo',
+        '#type'             => 'managed_file',
+        '#description'      => t('Upload logo'),
+        '#upload_location'  => 'public://logos/',
+        '#upload_validators' => array(
+            'file_validate_extensions' => array('png jpg jpeg gif'),
+          ),
+    );
+
+    return $form;
+}
+
+function imscmanagement_logo_sponsor_form($form, &$form_state){
+
+    $form['logo'] = array(
+        '#title'            => 'Upload sponsor logo',
+        '#type'             => 'managed_file',
+        '#description'      => t('Upload logo'),
+        '#upload_location'  => 'public://sponsors/',
+        '#upload_validators' => array(
+            'file_validate_extensions' => array('png jpg jpeg gif'),
+          ),
+    );
+
+    return $form;
+}
+
+
+//WEBFORM
+
+function imscmanagement_form_alter(&$form, $form_state, $form_id){
+  if( ($form_id == 'webform_client_form_85') || ($form_id == 'webform_client_form_259') || ($form_id == 'webform_client_form_260') || ($form_id == 'webform_client_form_261') ){
+    $form['reset'] = array(
+      '#suffix' => '<a id="reset_button">'.t('Cancel').'</a>',
+    );
+  }
+}
+
+
+//DEFAULT TOURNAMETS
+
+function imscmanagement_node_postsave($node){
+    $nid = $node->nid;
+
+    $type = $node->type;
+
+    if($type == 'tournament'):
+
+        $default = db_query('SELECT `field_tournament_default_value` FROM `field_revision_field_tournament_default` WHERE `entity_id` = '.$nid)->fetchField();
+
+        if($default == 1):
+            $tournament = db_query('SELECT `field_tournament_type_value` FROM `field_revision_field_tournament_type` WHERE `entity_id` = '.$nid)->fetchField();
+
+            $results = db_query("SELECT field_revision_field_tournament_default.entity_id
+                FROM field_revision_field_tournament_default
+                INNER JOIN field_revision_field_tournament_type
+                ON field_revision_field_tournament_default.entity_id = field_revision_field_tournament_type.entity_id
+                WHERE field_revision_field_tournament_default.field_tournament_default_value = 1 AND field_revision_field_tournament_type.field_tournament_type_value = '".$tournament."'
+                ");
+
+            foreach($results as $nid_to_change):
+                if($nid != $nid_to_change->entity_id){
+                    $node = node_load($nid_to_change->entity_id);
+                    $node_wrapper = entity_metadata_wrapper('node', $node);
+                    $node_wrapper->field_tournament_default->set(0);
+                    $node_wrapper->save();
+                }
+            endforeach;
+            
+        endif;
+
+    endif;
+
+
+
+}
+
+//DELETE TOURNAMNET
+function imsmanagement_node_postdelete($node){
+    $nid = $node->nid;
+
+    db_delete('tr_matches')
+        ->condition('tournament_id' , $nid, "=")
+        ->execute();
+
+        db_delete('tr_ranking')
+        ->condition('tournament_id' , $nid, "=")
+        ->execute();
+}

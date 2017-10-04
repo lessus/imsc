@@ -1,0 +1,6 @@
+name = IMSCmanagement
+description = Management tournament system
+package = Tournaments
+core = 7.x
+
+files[] = imscmanagement.module
